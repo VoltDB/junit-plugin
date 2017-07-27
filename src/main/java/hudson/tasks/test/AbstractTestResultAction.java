@@ -1,18 +1,18 @@
 /*
  * The MIT License
- * 
+ *
  * Copyright (c) 2004-2009, Sun Microsystems, Inc., Kohsuke Kawaguchi, Daniel Dyer, Red Hat, Inc., Stephen Connolly, id:cactusman, Yahoo!, Inc.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -56,6 +56,8 @@ import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.export.Exported;
 import org.kohsuke.stapler.export.ExportedBean;
+import java.sql.Connection;
+import java.util.ArrayList;
 
 /**
  * Common base class for recording test result.
@@ -76,7 +78,7 @@ public abstract class AbstractTestResultAction<T extends AbstractTestResultActio
      */
     public transient Run<?,?> run;
     @Deprecated
-    public transient AbstractBuild<?,?> owner;
+     public transient AbstractBuild<?,?> owner;
 
     private Map<String,String> descriptions = new ConcurrentHashMap<String, String>();
 
@@ -155,6 +157,57 @@ public abstract class AbstractTestResultAction<T extends AbstractTestResultActio
         return "clipboard.png";
     }
 
+    // QA database sql query method
+    public String getData(String testName, String columnName) {
+    String returnString = new String();
+    String username = "jpower";
+    String password = "jpower";
+    String connectionUrl = "jdbc:mysql://volt2.voltdb.lan/qa";
+    String testNameReformat = testName.substring(0, testName.length() - 1);
+    testNameReformat = testNameReformat.replace("/t",".t").replace("/T",".T").replace("_","-");
+    try {
+        Class.forName("com.mysql.jdbc.Driver").newInstance(); // init mysql Driver
+        java.sql.Connection connection = java.sql.DriverManager.getConnection(connectionUrl, username, password);
+        java.sql.Statement statement = connection.createStatement();
+        String query = "SELECT name AS 'Test Name',\n" +
+            "      SUM(fails) AS 'Fails',\n" +
+            "      SUM(total) AS 'Total',\n" +
+            "      SUM(fails)/SUM(total)*100. AS 'Fail %',\n" +
+            "      MAX(latest) AS 'Latest Failure'\n" +
+            "FROM\n" +
+            " (SELECT name,\n" +
+            "         COUNT(*) AS fails,\n" +
+            "\n" +
+            "    (SELECT COUNT(*)\n" +
+            "     FROM `junit-builds` AS jb\n" +
+            "     WHERE jb.name = tf.job\n" +
+            "       AND NOW() - INTERVAL 30 DAY <= jb.stamp) AS total,\n" +
+            "         date_format(MAX(tf.stamp), '%Y-%m-%d %T') AS latest\n" +
+            "  FROM `junit-test-failures` AS tf\n" +
+            "  WHERE NOT status='FIXED'\n" +
+            "    AND (name=\""+ testNameReformat + "\")\n" +
+            "    AND (tf.job=\"branch-2-pro-junit-master\"\n" +
+            "         OR tf.job=\"branch-2-community-junit-master\"\n" +
+            "         OR tf.job=\"branch-2-vdm-py-test-master\")\n" +
+            "    AND NOW() - INTERVAL 30 DAY <= tf.stamp\n" +
+            "  GROUP BY name,\n" +
+            "           total) AS intermediate";
+        java.sql.ResultSet resultSet = statement.executeQuery(query);
+        while(resultSet.next()) {
+                    // get data from column name e.g. "Test Name","Job Name","Fail %", etc.
+                    returnString = resultSet.getString(columnName);
+        }
+        // close sql resultset, statement, and connection (in that order)
+        resultSet.close();
+        statement.close();
+        connection.close();
+    }
+    catch(Exception e){
+        return e.toString();
+    }
+        return returnString;
+    }
+                                                                                                  
     public HealthReport getBuildHealth() {
         final double scaleFactor = getHealthScaleFactor();
         if (scaleFactor < 1e-7) {
@@ -167,9 +220,9 @@ public abstract class AbstractTestResultAction<T extends AbstractTestResultActio
                 : (int) (100.0 * Math.max(0.0, Math.min(1.0, 1.0 - (scaleFactor * failCount) / totalCount)));
         Localizable description, displayName = Messages._AbstractTestResultAction_getDisplayName();
         if (totalCount == 0) {
-        	description = Messages._AbstractTestResultAction_zeroTestDescription(displayName);
+            description = Messages._AbstractTestResultAction_zeroTestDescription(displayName);
         } else {
-        	description = Messages._AbstractTestResultAction_TestsDescription(displayName, failCount, totalCount);
+            description = Messages._AbstractTestResultAction_TestsDescription(displayName, failCount, totalCount);
         }
         return new HealthReport(score, description);
     }
@@ -237,7 +290,7 @@ public abstract class AbstractTestResultAction<T extends AbstractTestResultActio
             }
         }
     }
-    
+   
     public TestResult findPreviousCorresponding(TestResult test) {
         T previousResult = getPreviousResult();
         if (previousResult != null) {
@@ -251,10 +304,10 @@ public abstract class AbstractTestResultAction<T extends AbstractTestResultActio
     public TestResult findCorrespondingResult(String id) {
         return ((TestResult)getResult()).findCorrespondingResult(id);
     }
-    
+   
     /**
      * A shortcut for summary.jelly
-     * 
+     *
      * @return List of failed tests from associated test result.
      */
     public List<? extends TestResult> getFailedTests() {
@@ -263,7 +316,7 @@ public abstract class AbstractTestResultAction<T extends AbstractTestResultActio
 
     /**
      * A shortcut for scripting
-     * 
+     *
      * @return List of passed tests from associated test result.
      * @since TODO
      */
@@ -274,7 +327,7 @@ public abstract class AbstractTestResultAction<T extends AbstractTestResultActio
 
     /**
      * A shortcut for scripting
-     * 
+     *
      * @return List of skipped tests from associated test result.
      * @since TODO
      */
@@ -328,7 +381,7 @@ public abstract class AbstractTestResultAction<T extends AbstractTestResultActio
         else
             return new Area(500,200);
     }
-    
+   
     private CategoryDataset buildDataSet(StaplerRequest req) {
         boolean failureOnly = Boolean.valueOf(req.getParameter("failureOnly"));
 
@@ -442,22 +495,22 @@ public abstract class AbstractTestResultAction<T extends AbstractTestResultActio
      * <p>
      * The default implementation stores information in the 'this' object.
      *
-     * @see TestObject#getDescription() 
+     * @see TestObject#getDescription()
      */
     protected String getDescription(TestObject object) {
-    	return descriptions.get(object.getId());
+        return descriptions.get(object.getId());
     }
 
     protected void setDescription(TestObject object, String description) {
-    	descriptions.put(object.getId(), description);
+        descriptions.put(object.getId(), description);
     }
 
     public Object readResolve() {
-    	if (descriptions == null) {
-    		descriptions = new ConcurrentHashMap<String, String>();
-    	}
-    	
-    	return this;
+        if (descriptions == null) {
+            descriptions = new ConcurrentHashMap<String, String>();
+        }
+    
+        return this;
     }
 
     @Extension public static final class Summarizer extends Run.StatusSummarizer {

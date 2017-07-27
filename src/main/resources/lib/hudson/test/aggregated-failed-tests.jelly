@@ -23,7 +23,7 @@ THE SOFTWARE.
 -->
 
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson/test" xmlns:f="/lib/form">
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson/test" xmlns:f="/lib/form" xmlns:g="glide">
   <st:documentation>
     Display links to failed test from all child reports.
     @since 1.538
@@ -58,7 +58,29 @@ THE SOFTWARE.
             </tr>
           </j:forEach>
         </table>
+
+        <h4>Master Failure History (Past 30 Days; Combined Pro, Community, VDM)</h4>
+
+        <table class ="pane sortable bigtable stripped">
+          <tr>
+            <td class="pane-header" style="text-align:left;">Test Name</td>
+            <td class="pane-header" style="text-align:center;">Failures</td>
+            <td class="pane-header" style="text-align:center;">Total Tests</td>
+            <td class="pane-header" style="text-align:center;">Fail %</td>
+            <td class="pane-header" style="text-align:center;">Latest Failure</td>
+          </tr>
+          <j:forEach var="f" items="${report.result.failedTests}" varStatus="i">
+            <tr>
+              <td class="pane no-wrap" style="text-align:left;">${it.getData(f.getRelativePathFrom(report.result),"Test Name")}</td>
+              <td class="pane no-wrap" style="text-align:center;">${it.getData(f.getRelativePathFrom(report.result), "Fails")}</td>
+              <td class="pane no-wrap" style="text-align:center;">${it.getData(f.getRelativePathFrom(report.result), "Total")}</td>
+              <td class="pane no-wrap" style="text-align:center;">${it.getData(f.getRelativePathFrom(report.result), "Fail %")}</td>
+              <td class="pane no-wrap" style="text-align:center;">${it.getData(f.getRelativePathFrom(report.result), "Latest Failure")}</td>
+            </tr>
+          </j:forEach>
+        </table>
+        <br></br>
       </j:if>
     </j:forEach>
-   </j:if>
+  </j:if>
 </j:jelly>
