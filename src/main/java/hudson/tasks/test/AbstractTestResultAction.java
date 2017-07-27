@@ -176,9 +176,9 @@ public abstract class AbstractTestResultAction<T extends AbstractTestResultActio
             "      MAX(latest) AS 'Latest Failure'\n" +
             "FROM\n" +
             " (SELECT name,\n" +
-            "         COUNT(*) AS fails,\n" +
+            "         COUNT(DISTINCT stamp) AS fails,\n" +
             "\n" +
-            "    (SELECT COUNT(*)\n" +
+            "    (SELECT COUNT(DISTINCT stamp)\n" +
             "     FROM `junit-builds` AS jb\n" +
             "     WHERE jb.name = tf.job\n" +
             "       AND NOW() - INTERVAL 30 DAY <= jb.stamp) AS total,\n" +
