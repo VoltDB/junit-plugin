@@ -126,6 +126,57 @@ public final class TestResult extends MetaTabulatedResult {
         parse(buildTime, results);
     }
 
+    // QA database sql query method
+    public String getData(String testName, String columnName) {
+    String returnString = new String();
+    String username = "jpower";
+    String password = "jpower";
+    String connectionUrl = "jdbc:mysql://volt2.voltdb.lan/qa";
+    String testNameReformat = testName.substring(0, testName.length() - 1);
+    testNameReformat = testNameReformat.replace("/t",".t").replace("/T",".T").replace("_","-");
+    try {
+        Class.forName("com.mysql.jdbc.Driver").newInstance(); // init mysql Driver
+        java.sql.Connection connection = java.sql.DriverManager.getConnection(connectionUrl, username, password);
+        java.sql.Statement statement = connection.createStatement();
+        String query = "SELECT name AS 'Test Name',\n" +
+            "      SUM(fails) AS 'Fails',\n" +
+            "      SUM(total) AS 'Total',\n" +
+            "      SUM(fails)/SUM(total)*100. AS 'Fail %',\n" +
+            "      MAX(latest) AS 'Latest Failure'\n" +
+            "FROM\n" +
+            " (SELECT name,\n" +
+            "         COUNT(DISTINCT stamp) AS fails,\n" +
+            "\n" +
+            "    (SELECT COUNT(DISTINCT stamp)\n" +
+            "     FROM `junit-builds` AS jb\n" +
+            "     WHERE jb.name = tf.job\n" +
+            "       AND NOW() - INTERVAL 30 DAY <= jb.stamp) AS total,\n" +
+            "         date_format(MAX(tf.stamp), '%Y-%m-%d %T') AS latest\n" +
+            "  FROM `junit-test-failures` AS tf\n" +
+            "  WHERE NOT status='FIXED'\n" +
+            "    AND (name=\""+ testNameReformat + "\")\n" +
+            "    AND (tf.job=\"branch-2-pro-junit-master\"\n" +
+            "         OR tf.job=\"branch-2-community-junit-master\"\n" +
+            "         OR tf.job=\"branch-2-vdm-py-test-master\")\n" +
+            "    AND NOW() - INTERVAL 30 DAY <= tf.stamp\n" +
+            "  GROUP BY name,\n" +
+            "           total) AS intermediate";
+        java.sql.ResultSet resultSet = statement.executeQuery(query);
+        while(resultSet.next()) {
+                    // get data from column name e.g. "Test Name","Job Name","Fail %", etc.
+                    returnString = resultSet.getString(columnName);
+        }
+        // close sql resultset, statement, and connection (in that order)
+        resultSet.close();
+        statement.close();
+        connection.close();
+    }
+    catch(Exception e){
+        return e.toString();
+    }
+        return returnString;
+    }
+
     public TestObject getParent() {
     	return parent;
     }
