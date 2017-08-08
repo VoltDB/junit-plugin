@@ -160,8 +160,8 @@ public abstract class AbstractTestResultAction<T extends AbstractTestResultActio
     // QA database sql query method
     public String getData(String testName, String columnName) {
     String returnString = new String();
-    String username = "jpower";
-    String password = "jpower";
+    String username = "junit-plugin";
+    String password = "TVPqeaGmk3GzeKb2";
     String connectionUrl = "jdbc:mysql://volt2.voltdb.lan/qa";
     String testNameReformat = testName.substring(0, testName.length() - 1);
     testNameReformat = testNameReformat.replace("/t",".t").replace("/T",".T").replace("_","-");
